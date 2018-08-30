@@ -1,0 +1,64 @@
+package mq.rabbit.config;
+
+import org.springframework.amqp.core.AcknowledgeMode;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
+import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import mq.rabbit.receiver.DirectAckReceiver;
+
+/**
+ * 直连类型配置
+ * @author calon
+ *
+ */
+@Configuration
+public class DirectRabbitConfig {
+	
+	@Bean
+    public Queue CalonDirectQueue() {
+        return new Queue("CalonDirectQueue",true);
+    }
+	@Bean
+	public Queue CalonDirectQueueAck() {
+		return new Queue("CalonDirectQueueAck",true);
+	}
+	
+	@Bean
+    DirectExchange CalonDirectExchange() {
+        return new DirectExchange("CalonDirectExchange");
+    }
+	
+	@Bean
+    Binding bindingDirect() {
+        return BindingBuilder.bind(CalonDirectQueue()).to(CalonDirectExchange()).with("CalonDirectRouting");
+    }
+	@Bean
+    Binding bindingDirectAck() {
+        return BindingBuilder.bind(CalonDirectQueueAck()).to(CalonDirectExchange()).with("CalonDirectQueueAckRouting");
+    }
+
+	@Autowired
+	private CachingConnectionFactory connectionFactory;
+	@Autowired
+	private DirectAckReceiver directAckReceiver;
+
+	@Bean
+	public SimpleMessageListenerContainer simpleMessageListenerContainer() {
+		SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(connectionFactory);
+		container.setConcurrentConsumers(1);
+		container.setMaxConcurrentConsumers(1);
+		container.setAcknowledgeMode(AcknowledgeMode.MANUAL); // 手动确认消费
+
+		container.setQueues(CalonDirectQueueAck());
+		container.setMessageListener(directAckReceiver);
+		return container;
+	}
+
+}
